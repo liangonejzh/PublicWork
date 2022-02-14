@@ -1,0 +1,225 @@
+return ResponseEntity.ok(new ResultWrapper<MyBean>(myBean));
+
+return ResponseEntity.ok(new ResultWrapper<>(myBean));
+
+return ResponseEntity.ok(new ResultWrapper<>(ReturnCode.OK));
+
+ResultWrapper resultWrapper = service.getResultDate(para1, para2);
+return ResponseEntity.ok(resultWrapper);
+
+package cn.com.pg.instore.survey.common.result;
+
+
+import cn.com.pg.instore.survey.common.enums.ReturnCode;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.io.Serializable;
+
+/**
+ * @author yf
+ */
+@Getter
+@Setter
+public class ResultWrapper<T> implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    public ResultWrapper() {
+        this.code = ReturnCode.OK.getCode();
+        this.message = ReturnCode.OK.getMessage();
+    }
+
+    public ResultWrapper(T data) {
+        if (data instanceof ReturnCode) {
+            this.code = ((ReturnCode) data).getCode();
+            this.message = ((ReturnCode) data).getMessage();
+        } else {
+            this.data = data;
+        }
+    }
+
+    public ResultWrapper(T data, ReturnCode returnCode) {
+        this.data = data;
+        this.code = returnCode.getCode();
+        this.message = returnCode.getMessage();
+    }
+
+    public ResultWrapper(ReturnCode returnCode, String detailMsg) {
+        this.code = returnCode.getCode();
+
+        StringBuilder builder = new StringBuilder(returnCode.getMessage());
+        builder.append(": ");
+        builder.append(detailMsg);
+        this.message = builder.toString();
+    }
+
+    public ResultWrapper(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    private T data;
+
+    private Long timestamp = System.currentTimeMillis();
+
+    private String message;
+
+    private int code;
+
+}
+
+
+
+
+
+package cn.com.pg.instore.survey.common.enums;
+
+
+import cn.com.pg.instore.survey.utils.ExceptionUtils;
+import com.google.common.collect.ImmutableMap;
+import lombok.Getter;
+
+import java.util.Map;
+
+/**
+ * @author yf
+ */
+@Getter
+public enum ReturnCode {
+    /** success */
+    OK(0, "success"),
+
+    /** 请联系管理员 */
+    ERROR(-1, "系统错误, 请联系管理员"),
+
+    /** 系统错误 */
+    REQUEST_PARAMETER_EXCEPTION(-2, "请求参数异常"),
+
+    TOKEN_INVALID_ERROR(40001, "token invalid error."),
+
+    XSS_SQL_INVALID_ERROR(40002, "Invalid Request error."),
+
+    /** user info not found error. */
+    USER_NOT_FOUND_ERROR(60001, "user info not found error."),
+
+    /** user info not valid error.*/
+    USER_NOT_VALID_ERROR(60002, "user info not valid error."),
+
+    /** Unauthorized.*/
+    UNAUTHORIZED(60003, "Unauthorized."),
+
+    /** Internal Server Error */
+    INTERNAL_SERVER_ERROR(90000, "Internal Server Error"),
+
+    /** Service Error  */
+    SERVICE_ERROR(90001, "Service Error "),
+
+    /** 提交失败 */
+    FAILURE_TO_SUBMIT(10000, "提交失败"),
+
+    /** 试题不存在, 或已被删除 */
+    NO_QUESTIONS_EXIST(10001, "试题不存在, 或已被删除"),
+
+    /** 记录不存在, 或已被删除 */
+    NO_RECORD_EXIST(10002, "记录不存在, 或已被删除"),
+
+    /** 系统错误, 门店组不存在 */
+    NO_STORE_GROUP_EXIST(10003, "系统错误, 门店组不存在"),
+
+    /** 抢答失败, 抢答题已被其他人抢先 */
+    LIMIT_ALREADY_ANSWERED(10004, "抢答失败, 抢答题已被其他人抢先"),
+
+    /** 提交失败, 重复提交 */
+    REPEATED_SUBMISSION(10005, "提交失败, 重复提交"),
+
+    /** 提交失败, 超出Survey提交时间范围 */
+    BEYOND_THE_DEADLINE(10006, "提交失败, 超出Survey提交时间范围"),
+
+    /** 提交失败, 非法答案格式 */
+    INCORRECT_FORMAT(10007, "提交失败, 非法答案格式"),
+
+    /** 提交失败, 请选择" */
+    PLEASE_CHOOSE_THE_ANSWER(10008, "提交失败, 请选择"),
+
+    /** 提交失败, 请输入值" */
+    VALUE_CANNOT_BE_EMPTY(10009, "提交失败, 请输入值"),
+
+    /** 定位失败 */
+    SEEK_FAILED(100010, "定位失败"),
+
+    /** 请上传图片 */
+    PLEASE_UPLOAD_PICTURES(100011, "请上传图片"),
+
+    /** 定位地图失败 */
+    LOCATION_MAP_ACQUISITION_FAILURE(100012, "定位地图获取失败"),
+
+    /** 提交失败, 请先抢答 */
+    FAILURE_TO_SUBMIT_NOT_LIMIT(100013, "提交失败, 请先抢答"),
+
+    /** 提交失败, 抢答题已被其他人抢先 */
+    SUBMIT_LIMIT_ALREADY_ANSWERED(100014, "提交失败, 抢答题已被其他人抢先"),
+
+    /** 提交失败, 抢答题已被其他人抢先 */
+    ONLY_ONE_PERSON_IN_THE_SAME_CATEGORY_CAN_ANSWER(100015, "提交失败, 同品类只能有一个人作答"),
+
+    /** 提交失败, 问题已被召回 */
+    FAILURE_TO_SUBMIT_RECALL(100016, "提交失败, 问题已被召回"),
+
+    /** 数据库重复数据 */
+    DB_DUPLICATE_DATA(800010, "数据库重复数据"),
+
+    /** 表单重复数据 */
+    FROM_DUPLICATE_DATA(800011, "表单重复数据"),
+
+    /** 门店组不存在 */
+    NOT_EXIST_STORE_GROUP(800012, "门店组不存在"),
+
+    /** survey不存在 */
+    NOT_EXIST_SURVEY(800013, "Survey不存在"),
+
+    /** 审批状态不正确 */
+    NO_VALID_APPROVE(800014, "审批状态错误, 不能继续审批"),
+
+    TIME_CHECK_FAILED(800015, "发布范围结束时间不能小于当前时间"),
+
+    NON_SETTING_INCENTIVE (100001, "未设置金币奖励规则"),
+
+    ISA_LEAVE_RECORD_NO_DATA(90013,"暂无数据"),
+
+    SELECT_STORE_INFO_ERROR(90014,"门店信息获取失败"),
+
+    IMPORT_STORE_GROUP_ERROR(90015,"批量导入门店组数据解析异常"),
+
+    ;
+
+    private int code;
+
+    private String message;
+
+    /**
+     * @param code
+     * @param message
+     */
+    ReturnCode(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    /**
+     * XXX
+     * @return
+     */
+    public String generateErrorMsg() {
+        return ExceptionUtils.generateErrorMsg(this);
+    }
+
+    /**
+     * XXX
+     * @return
+     */
+    public Map<String, Object> toMap() {
+        return ImmutableMap.<String, Object>builder().put("code", code).put("message", message)
+            .build();
+    }
+}
