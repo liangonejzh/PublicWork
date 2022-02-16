@@ -7,10 +7,10 @@ return ResponseEntity.ok(new ResultWrapper<>(ReturnCode.OK));
 ResultWrapper resultWrapper = service.getResultDate(para1, para2);
 return ResponseEntity.ok(resultWrapper);
 
-package cn.com.pg.instore.survey.common.result;
+package cn.com.common.result;
 
 
-import cn.com.pg.instore.survey.common.enums.ReturnCode;
+import cn.com.common.enums.ReturnCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -73,10 +73,10 @@ public class ResultWrapper<T> implements Serializable {
 
 
 
-package cn.com.pg.instore.survey.common.enums;
+package cn.com.common.enums;
 
 
-import cn.com.pg.instore.survey.utils.ExceptionUtils;
+import cn.com.utils.ExceptionUtils;
 import com.google.common.collect.ImmutableMap;
 import lombok.Getter;
 
@@ -222,4 +222,154 @@ public enum ReturnCode {
         return ImmutableMap.<String, Object>builder().put("code", code).put("message", message)
             .build();
     }
+}
+
+
+
+
+
+package cn.com.handler;
+
+
+import cn.com.common.constants.Constants;
+import cn.com.common.enums.ReturnCode;
+import cn.com.common.result.ResultWrapper;
+import cn.com.exception.AuthenticationException;
+import cn.com.exception.ParameterException;
+import cn.com.exception.ServiceException;
+import cn.com.exception.TokenInvalidException;
+import cn.com.utils.ExceptionUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
+
+/**
+ * global exception handler
+ *
+ * @author yf
+ */
+@Slf4j
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> exception(Exception e) {
+
+        log.error("Exception occurred. {} ", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                .body(new ResultWrapper<>(ReturnCode.ERROR, e.getMessage()));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> missingServletRequestParameter(
+            Exception e) {
+
+        log.error("MissingServletRequestParameterException occurred. {} ", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.SC_BAD_REQUEST).body(new ResultWrapper(
+                ReturnCode.REQUEST_PARAMETER_EXCEPTION, e.getMessage()));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> authenticationException(
+            AuthenticationException e) {
+
+        log.error("AuthenticationException occurred. {} ", e.getMessage());
+
+        ReturnCode returnCode = ExceptionUtils.getReturnCode(e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.SC_UNAUTHORIZED)
+                .body(new ResultWrapper<>(returnCode));
+    }
+
+
+    @ExceptionHandler(ParameterException.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> parameterException(
+            ParameterException e) {
+
+        log.error("ParameterException occurred. {} ", e.getMessage());
+
+        ReturnCode returnCode = ExceptionUtils.getReturnCode(e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.SC_BAD_REQUEST)
+                .body(new ResultWrapper<>(returnCode));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> illegalArgumentException(
+            IllegalArgumentException e) {
+
+        log.error("IllegalArgumentException occurred. {} ", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.SC_BAD_REQUEST)
+                .body(new ResultWrapper<>(ReturnCode.REQUEST_PARAMETER_EXCEPTION));
+    }
+
+    @ExceptionHandler(cn.com.exception.UserNotFoundException.class)
+    public ResponseEntity<ResultWrapper> userNotFoundExceptionHandler(cn.com.exception.UserNotFoundException e) {
+        log.error("UserNotFoundException occurred. {} ", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SC_UNAUTHORIZED)
+                .body(new ResultWrapper(ReturnCode.USER_NOT_FOUND_ERROR));
+    }
+
+    @ExceptionHandler(TokenInvalidException.class)
+    public ResponseEntity<ResultWrapper> tokenInvalidExceptionHandler(TokenInvalidException e) {
+        log.error("TokenInvalidException occurred. {} ", e.getMessage());
+        return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                .body(new ResultWrapper(ReturnCode.TOKEN_INVALID_ERROR));
+    }
+
+    /**
+     * create: 2020/5/13 12:36
+     * description: @Validated check class异常
+     *
+     * @param e: e
+     * @return org.springframework.http.ResponseEntity<cn.com.common.result.ResultWrapper < java.lang.Object>>
+     * @author niemingxin
+     */
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ResponseEntity<ResultWrapper<Object>> bindExceptionHandle(MethodArgumentNotValidException e) {
+        log.error("请求参数异常", e);
+
+        //如果check字段,有多个字段未满足要求,则拼接在一起返回
+        String message = e.getBindingResult().getFieldErrors().stream().map(x -> x.getField() + Constants.COLON + x.getDefaultMessage()).collect(Collectors.joining(Constants.COMMA));
+
+        return ResponseEntity.ok(new ResultWrapper<>(ReturnCode.REQUEST_PARAMETER_EXCEPTION.getCode(), message));
+    }
+
+    /**
+     * create: 2020/5/15 11:08
+     * description: @Validated check param和header异常
+     *
+     * @param e:e
+     * @return org.springframework.http.ResponseEntity<cn.com.common.result.ResultWrapper < java.lang.Object>>
+     * @author niemingxin
+     */
+    @ExceptionHandler(value = ConstraintViolationException.class)
+    public ResponseEntity<ResultWrapper<Object>> bindExceptionHandle(ConstraintViolationException e) {
+        log.error("请求参数异常", e);
+        String message = e.getConstraintViolations().stream().map(ConstraintViolation::getMessage).collect(Collectors.joining(Constants.COMMA));
+        return ResponseEntity.ok(new ResultWrapper<>(ReturnCode.REQUEST_PARAMETER_EXCEPTION.getCode(), message));
+    }
+
+    @ExceptionHandler(ServiceException.class)
+    public ResponseEntity<ResultWrapper<ReturnCode>> serviceException(ServiceException e) {
+
+        log.error("ServiceException occurred. {} ", e.getMessage());
+
+        ReturnCode returnCode = ExceptionUtils.getReturnCode(e.getMessage());
+
+        return ResponseEntity.ok(new ResultWrapper<>(returnCode, e.getMessage()));
+    }
+
 }
